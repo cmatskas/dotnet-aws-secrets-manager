@@ -11,6 +11,8 @@ public class Meteorite
 {
     [DynamoDBHashKey("id")]
     public string Id { get; set; }
+    
+    [DynamoDBProperty]
     public string Name { get; set; }
     public string Nametype { get; set; }
     public string Recclass { get; set; }

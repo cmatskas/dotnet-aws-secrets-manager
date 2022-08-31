@@ -25,14 +25,12 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-app.Map("api/meteorites", (IConfiguration config) => {
-    var secret = config["DynamoDBConnectionString"];
-    return secret;
+app.Map("api/meteorites", async (string name, IConfiguration config) => {
 
+    return await GetMeteoritesAsync(name);
 });
 
 app.Map("api/weather", async (string city, IHttpClientFactory factory, IConfiguration config) => {
-
     var httpClient = factory.CreateClient();
     var apiKey = config["ApiKey"];
         
@@ -55,3 +53,21 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
+{
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USWest2);
+    var context = new DynamoDBContext(client);
+    var scs = new List<ScanCondition>();
+    var sc = new ScanCondition("Name", ScanOperator.Contains, name);
+
+    scs.Add(sc);
+
+    var cfg = new DynamoDBOperationConfig
+    {
+        QueryFilter = scs,
+    };
+
+    var response = context.ScanAsync<Meteorite>(scs);
+    return await response.GetRemainingAsync();
+}
