@@ -1,43 +1,42 @@
 using Amazon;
-using Amazon.SecretsManager;
-using Amazon.SecretsManager.Model;
+using Amazon.Extensions.NETCore.Setup;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddSystemsManager(
+    source => {
+                source.Path = "/";
+                source.AwsOptions = new AWSOptions() 
+                {
+                    Region = RegionEndpoint.USWest2
+                };
+                source.ReloadAfter = TimeSpan.FromSeconds(30);
+            });
 
 // Add services to the container.
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IAmazonSecretsManager>(a =>
-      new AmazonSecretsManagerClient(RegionEndpoint.USWest2)
-);
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-app.Map("api/meteorites", async (IAmazonSecretsManager secretsManager) => {
-    var secret = await secretsManager.GetSecretValueAsync(
-        new GetSecretValueRequest()
-        {
-            SecretId = "DynamoDBConnectionString",
-        }
-    );
-    return secret.SecretString;
+app.Map("api/meteorites", (IConfiguration config) => {
+    var secret = config["DynamoDBConnectionString"];
+    return secret;
 
 });
 
-app.Map("api/weather", async (string city, IHttpClientFactory factory, IAmazonSecretsManager secretsManager) => {
+app.Map("api/weather", async (string city, IHttpClientFactory factory, IConfiguration config) => {
 
     var httpClient = factory.CreateClient();
-    var apiKey = await secretsManager.GetSecretValueAsync(
-        new GetSecretValueRequest()
-        {
-            SecretId = "ApiKey"
-        }
-    );
-
-    var requestUri = $"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={apiKey.SecretString}";
+    var apiKey = config["ApiKey"];
+        
+    var requestUri = $"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={apiKey}";
     var response = await httpClient.GetAsync(requestUri);
     return await response.Content.ReadAsStringAsync();
 });
