@@ -10,17 +10,17 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IAmazonSecretsManager>(a =>
-      new AmazonSecretsManagerClient(RegionEndpoint.USWest2)
+      new AmazonSecretsManagerClient(RegionEndpoint.USEast1)
 );
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-app.Map("api/meteorites", async (IAmazonSecretsManager secretsManager) => {
+app.Map("api/getsecret", async (string name, IAmazonSecretsManager secretsManager) => {
     var secret = await secretsManager.GetSecretValueAsync(
         new GetSecretValueRequest()
         {
-            SecretId = "DynamoDBConnectionString",
+            SecretId = name,
         }
     );
     return secret.SecretString;
