@@ -5,6 +5,7 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.SimpleSystemsManagement.Model;
 using Amazon.SimpleSystemsManagement;
+using Amazon.DynamoDBv2.Model;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +14,7 @@ builder.Configuration.AddSystemsManager(
                 source.Path = "/";
                 source.AwsOptions = new AWSOptions() 
                 {
-                    Region = RegionEndpoint.USWest2
+                    Region = RegionEndpoint.USEast1
                 };
                 source.ReloadAfter = TimeSpan.FromSeconds(30);
             });
@@ -30,6 +31,10 @@ var app = builder.Build();
 app.Map("api/meteorites", async (string name, IConfiguration config) => {
 
     return await GetMeteoritesAsync(name);
+});
+
+app.MapPost("api/meteorites", async(Meteorite meteorite) => {
+    return await CreateMeteoriteRecord(meteorite);
 });
 
 app.Map("api/weather", async (string city, IHttpClientFactory factory, IConfiguration config) => {
@@ -62,7 +67,7 @@ app.Run();
 
 async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
 {
-    var client = new AmazonDynamoDBClient(RegionEndpoint.USWest2);
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
     var context = new DynamoDBContext(client);
     var scs = new List<ScanCondition>();
     var sc = new ScanCondition("Name", ScanOperator.Contains, name);
@@ -78,9 +83,18 @@ async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
     return await response.GetRemainingAsync();
 }
 
+async Task<PutItemResponse> CreateMeteoriteRecord(Meteorite meteorite)
+{
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
+    var newMeteorite = ConvertMeteoriteToDBDocument(meteorite);
+    var result = await client.PutItemAsync("Meteorites", newMeteorite);
+
+    return result;
+}
+
 async Task<string> GetValueFromParameterStore(string paramName)
 {
-    var client = new AmazonSimpleSystemsManagementClient(RegionEndpoint.USWest2);
+    var client = new AmazonSimpleSystemsManagementClient(RegionEndpoint.USEast1);
     var request = new GetParameterRequest()
     {
         Name = paramName,
@@ -89,4 +103,15 @@ async Task<string> GetValueFromParameterStore(string paramName)
 
     var result = await client.GetParameterAsync(request);
     return result.Parameter.Value;
+}
+
+Dictionary<string, AttributeValue> ConvertMeteoriteToDBDocument(Meteorite meteorite)
+{
+    var propertyDictionary = new Dictionary<string, AttributeValue>();
+    foreach(var prop in meteorite.GetType().GetProperties())
+    {
+        propertyDictionary.Add(prop.Name, new AttributeValue(prop.GetValue(meteorite, null).ToString()));
+    }
+
+    return propertyDictionary;
 }
