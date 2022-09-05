@@ -11,7 +11,7 @@ builder.Configuration.AddSystemsManager(
                 source.Path = "/";
                 source.AwsOptions = new AWSOptions() 
                 {
-                    Region = RegionEndpoint.USWest2
+                    Region = RegionEndpoint.USEast1
                 };
                 source.ReloadAfter = TimeSpan.FromSeconds(30);
             });
@@ -56,7 +56,7 @@ app.Run();
 
 async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
 {
-    var client = new AmazonDynamoDBClient(RegionEndpoint.USWest2);
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
     var context = new DynamoDBContext(client);
     var scs = new List<ScanCondition>();
     var sc = new ScanCondition("Name", ScanOperator.Contains, name);
