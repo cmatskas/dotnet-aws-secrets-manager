@@ -14,7 +14,7 @@ builder.Configuration.AddSystemsManager(
                 source.Path = "/";
                 source.AwsOptions = new AWSOptions() 
                 {
-                    Region = RegionEndpoint.USEast1
+                    Region = RegionEndpoint.USWest2
                 };
                 source.ReloadAfter = TimeSpan.FromSeconds(30);
             });
@@ -67,7 +67,7 @@ app.Run();
 
 async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
 {
-    var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USWest2);
     var context = new DynamoDBContext(client);
     var scs = new List<ScanCondition>();
     var sc = new ScanCondition("Name", ScanOperator.Contains, name);
@@ -85,7 +85,7 @@ async Task<IEnumerable<Meteorite>> GetMeteoritesAsync(string name)
 
 async Task<PutItemResponse> CreateMeteoriteRecord(Meteorite meteorite)
 {
-    var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
+    var client = new AmazonDynamoDBClient(RegionEndpoint.USWest2);
     var newMeteorite = ConvertMeteoriteToDBDocument(meteorite);
     var result = await client.PutItemAsync("Meteorites", newMeteorite);
 
@@ -94,7 +94,7 @@ async Task<PutItemResponse> CreateMeteoriteRecord(Meteorite meteorite)
 
 async Task<string> GetValueFromParameterStore(string paramName)
 {
-    var client = new AmazonSimpleSystemsManagementClient(RegionEndpoint.USEast1);
+    var client = new AmazonSimpleSystemsManagementClient(RegionEndpoint.USWest2);
     var request = new GetParameterRequest()
     {
         Name = paramName,
@@ -110,7 +110,14 @@ Dictionary<string, AttributeValue> ConvertMeteoriteToDBDocument(Meteorite meteor
     var propertyDictionary = new Dictionary<string, AttributeValue>();
     foreach(var prop in meteorite.GetType().GetProperties())
     {
-        propertyDictionary.Add(prop.Name, new AttributeValue(prop.GetValue(meteorite, null).ToString()));
+        if(prop.Name.Equals("Id", StringComparison.OrdinalIgnoreCase))
+        {
+            propertyDictionary.Add("id", new AttributeValue() { S = prop.GetValue(meteorite).ToString() });
+        }
+        else
+        {
+            propertyDictionary.Add(prop.Name, new AttributeValue() { S = prop.GetValue(meteorite).ToString() });
+        }
     }
 
     return propertyDictionary;
